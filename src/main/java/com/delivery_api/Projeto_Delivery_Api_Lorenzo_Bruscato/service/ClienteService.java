@@ -19,9 +19,9 @@ public class ClienteService {
     private ClienteRepository clienteRepository;
 
     public Cliente cadastrar(@Validated Cliente cliente) {
-        if (clienteRepository.existsByEmail(cliente.getEmail())) {
-            throw new IllegalArgumentException("Email já cadastrado: " + cliente.getEmail());
-        }
+       if(clienteRepository.existsByEmail(cliente.getEmail())){
+           throw new IllegalArgumentException("Email já cadastro: " + cliente.getEmail());
+       }
 
         validarDadosCliente(cliente);
         cliente.setAtivo(true);

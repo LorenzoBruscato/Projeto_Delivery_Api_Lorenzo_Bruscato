@@ -19,7 +19,7 @@ public class ClienteController {
     private ClienteService clienteService;
 
     @PostMapping
-    public ResponseEntity<Cliente> cadastrar(@RequestBody Cliente cliente) {
+    public ResponseEntity<Cliente> cadastrar(@Validated @RequestBody Cliente cliente) {
         Cliente clienteSalvo = clienteService.cadastrar(cliente);
         return ResponseEntity.ok(clienteSalvo);
     }
@@ -30,6 +30,12 @@ public class ClienteController {
         return ResponseEntity.ok(clienteAtualizado);
     }
 
+    @GetMapping("/buscar")
+    public ResponseEntity<List<Cliente>> buscarPorNome(@RequestParam String nome) {
+        List<Cliente> clientes = clienteService.buscarPorNome(nome);
+        return ResponseEntity.ok(clientes);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Cliente> buscarPorId(@PathVariable Long id) {
         return clienteService.buscarPorId(id)
@@ -37,9 +43,5 @@ public class ClienteController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/buscar")
-    public ResponseEntity<List<Cliente>> buscarPorNome(@RequestParam String nome) {
-        List<Cliente> clientes = clienteService.buscarPorNome(nome);
-        return ResponseEntity.ok(clientes);
-    }
+
 }
