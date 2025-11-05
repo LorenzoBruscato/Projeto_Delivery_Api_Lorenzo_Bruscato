@@ -1,13 +1,16 @@
 package com.delivery_api.Projeto_Delivery_Api_Lorenzo_Bruscato.service;
 
+import com.delivery_api.Projeto_Delivery_Api_Lorenzo_Bruscato.dto.ClienteRequestDTO;
+import com.delivery_api.Projeto_Delivery_Api_Lorenzo_Bruscato.dto.ClienteResponseDTO;
 import com.delivery_api.Projeto_Delivery_Api_Lorenzo_Bruscato.entity.Cliente;
+import com.delivery_api.Projeto_Delivery_Api_Lorenzo_Bruscato.exceptions.BusinessException;
 import com.delivery_api.Projeto_Delivery_Api_Lorenzo_Bruscato.repository.ClienteRepository;
+
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,73 +21,88 @@ public class ClienteService {
     @Autowired
     private ClienteRepository clienteRepository;
 
-    public Cliente cadastrar(@Validated Cliente cliente) {
-       if(clienteRepository.existsByEmail(cliente.getEmail())){
-           throw new IllegalArgumentException("Email já cadastro: " + cliente.getEmail());
-       }
-
-        validarDadosCliente(cliente);
-        cliente.setAtivo(true);
-        return clienteRepository.save(cliente);
-    }
-
-    public Cliente atualizar(Long id, @Validated Cliente clienteAtualizado) {
-        Cliente cliente = clienteRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado: " + id));
-
-        if (!cliente.getEmail().equals(clienteAtualizado.getEmail()) &&
-                clienteRepository.existsByEmail(clienteAtualizado.getEmail())) {
-            throw new IllegalArgumentException("Email já cadastrado: " + clienteAtualizado.getEmail());
+    /**
+     * Cadastrar novo cliente
+     */
+    public ClienteResponseDTO cadastrar(ClienteRequestDTO dto) {
+        // Verifica se já existe um cliente com o mesmo email
+        if (clienteRepository.existsByEmail(dto.getEmail())) {
+            throw new BusinessException("Email já cadastrado: " + dto.getEmail());
         }
 
-        cliente.setNome(clienteAtualizado.getNome());
-        cliente.setEmail(clienteAtualizado.getEmail());
-        cliente.setTelefone(clienteAtualizado.getTelefone());
-        cliente.setEndereco(clienteAtualizado.getEndereco());
+        Cliente cliente = new Cliente();
+        cliente.setNome(dto.getNome());
+        cliente.setEmail(dto.getEmail());
+        cliente.setTelefone(dto.getTelefone());
+        cliente.setEndereco(dto.getEndereco());
+        cliente.setAtivo(true);
+        cliente.setDataCadastro(LocalDateTime.now());
 
-        return clienteRepository.save(cliente);
+        Cliente salvo = clienteRepository.save(cliente);
+        return new ClienteResponseDTO(salvo);
     }
 
+    /**
+     * Buscar cliente por ID
+     */
+    @Transactional
     public Optional<Cliente> buscarPorId(Long id) {
         return clienteRepository.findById(id);
     }
 
+    /**
+     * Buscar cliente por email
+     */
+    @Transactional
     public Optional<Cliente> buscarPorEmail(String email) {
         return clienteRepository.findByEmail(email);
     }
 
-    public List<Cliente> buscarPorNome(String nome) {
-        return clienteRepository.findByNomeContainingIgnoreCase(nome);
-    }
-
-    public List<Cliente> listarClientesAtivos() {
+    /**
+     * Listar todos os clientes ativos
+     */
+    @Transactional
+    public List<Cliente> listarAtivos() {
         return clienteRepository.findByAtivoTrue();
     }
 
-    public void desativarCliente(Long id) {
-        Cliente cliente = clienteRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado: " + id));
-        cliente.setAtivo(false);
+    /**
+     * Atualizar dados do cliente
+     */
+    public ClienteResponseDTO atualizar(Long id, ClienteRequestDTO dto) {
+        Cliente cliente = buscarPorId(id)
+                .orElseThrow(() -> new BusinessException("Cliente não encontrado: " + id));
+
+        // Verifica se o email foi alterado e se já está em uso
+        if (!cliente.getEmail().equals(dto.getEmail()) && clienteRepository.existsByEmail(dto.getEmail())) {
+            throw new BusinessException("Email já cadastrado: " + dto.getEmail());
+        }
+
+        cliente.setNome(dto.getNome());
+        cliente.setEmail(dto.getEmail());
+        cliente.setTelefone(dto.getTelefone());
+        cliente.setEndereco(dto.getEndereco());
+
+        Cliente atualizado = clienteRepository.save(cliente);
+        return new ClienteResponseDTO(atualizado);
+    }
+
+    /**
+     * Inativar cliente (soft delete)
+     */
+    public void inativar(Long id) {
+        Cliente cliente = buscarPorId(id)
+                .orElseThrow(() -> new BusinessException("Cliente não encontrado: " + id));
+
+        cliente.inativar();
         clienteRepository.save(cliente);
     }
 
-    public void ativarCliente(Long id) {
-        Cliente cliente = clienteRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado: " + id));
-        cliente.setAtivo(true);
-        clienteRepository.save(cliente);
-    }
-
-    private void validarDadosCliente(Cliente cliente) {
-        if (cliente.getNome() == null || cliente.getNome().trim().isEmpty()) {
-            throw new IllegalArgumentException("Nome é obrigatório");
-        }
-        if (cliente.getEmail() == null || cliente.getEmail().trim().isEmpty()) {
-            throw new IllegalArgumentException("Email é obrigatório");
-        }
-        if (cliente.getTelefone() == null || cliente.getTelefone().trim().isEmpty()) {
-            throw new IllegalArgumentException("Telefone é obrigatório");
-        }
-        // Add more validation rules as needed
+    /**
+     * Buscar clientes por nome (contendo)
+     */
+    @Transactional
+    public List<Cliente> buscarPorNome(String nome) {
+        return clienteRepository.findByNomeContainingIgnoreCase(nome);
     }
 }
